@@ -30,7 +30,6 @@ class Grid:
             perm = (int(num_str[i]) != 0)
 
             self.cells.append(Cell(int(num_str[i]), perm, i))
-        print("Cells created. len(self.cells) = " + str(len(self.cells)))
 
     def get_cell(self, cell_num):
         return self.cells[cell_num]
@@ -104,6 +103,13 @@ class Grid:
             if cell.get_num() == 0:
                 return False
         return True
+
+    def get_solution(self):
+        output = ""
+        for cell in self.cells:
+            output = output + str(cell.get_num())
+        return output
+
 
 
 class Cell:
