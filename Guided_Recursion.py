@@ -1,16 +1,16 @@
-from res.sudoku import convert_to_cell_num
-from res.sudoku import Grid
-
     # ~~~ Guided Recursion ~~~
     #
-    # This algorythm uses recursion
+    # This algorithm uses recursion
     # to provide a guided brute force
-    # solution to a given sudoku puzzel
+    # solution to a given sudoku puzzle
 
 # input: 81 char sting of ints representing an unsolved sudoku board
 #       note: blanks should be entered as 0
 
 # output: 81 char sting representing the same solved sudoku board
+
+from res.sudoku import convert_to_cell_num
+from res.sudoku import Grid
 
 
 # get the next cell pos based on the current pos
