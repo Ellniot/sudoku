@@ -1,5 +1,15 @@
+import time
+
 # TODO - replace "box num" with "region"
 # TODO add exception to comparison for 0
+
+def convert_to_cell_num(x,y):
+    return y*9+x
+
+def convert_to_x_y(num):
+    y = num // 9
+    x = num % 9
+    return (x, y)
 
 
 class Grid:
@@ -22,41 +32,82 @@ class Grid:
 
     def create_cells(self, num_str):
         for i in range(len(num_str)):
-            perm = (num_str[i] != 0)
+            perm = (int(num_str[i]) != 0)
 
-            self.cells.append(Cell(num_str[i], perm, i))
+            self.cells.append(Cell(int(num_str[i]), perm, i))
         print("Cells created. len(self.cells) = " + str(len(self.cells)))
 
     def get_cell(self, cell_num):
         return self.cells[cell_num]
 
     def num_fits(self, x, y, region, num):
-        return self.check_col(x, num) \
-            and self.check_row(y, num) \
-            and self.check_region(region, num)
+        #print("checking ("+str(x)+","+str(y)+") , r="+str(region)+"for num: "+str(num))
+        
+        cell_num = convert_to_cell_num(x, y)
+
+        col_check = self.check_col(x, num, cell_num)
+        row_check = self.check_row(y, num, cell_num)
+        region_check = self.check_region(region, num, cell_num)
+
+        #print("col_chk = "+str(col_check)+", row_chk = "+str(row_check)+", region_chk = "+str(region_check))
+
+        return col_check and row_check and region_check
 
     # True = num will fit
-    def check_col(self, x, num):
+    def check_col(self, x, num, cell_num):
         for i in range(len(self.cells)):
             # mod the cell # (0-80) by 9
             # x,y are 0-8
             if i % 9 == x:
-                # cell is in the given col
-                if self.cells[i].get_num() == num:
-                    return False
+                # don't compare the current cell
+                if i != cell_num:
+                    # cell is in the given col
+                    if self.cells[i].get_num() == num:
+                        return False
         return True
 
-    def check_row(self, y, num):
+    def check_row(self, y, num, cell_num):
         for i in range(9):
-            if self.cells[y*9+i] == num:
-                return False
+            # debugging
+            #print("row chk for cell #: " + str(y*9+i) + ", with num: " + str(num))
+            #print(type(num))
+            #print(type(self.cells[y*9+i].get_num()))
+            # don't compare the current cell
+                if (y*9+i) != cell_num:
+                    if self.cells[y*9+i].get_num() == num:
+                        return False
         return True
 
-    def check_region(self, region, num):
+    def check_region(self, region, num, cell_num):
         for cell in self.cells:
-            if cell.get_region() == region:
-                if cell.get_num() == num:
-                    return False
+            if cell.get_cell_num() != cell_num:
+                if cell.get_region() == region:
+                    if cell.get_num() == num:
+                        return False
+        return True
+
+    def print_grid(self):
+        output = ""
+        for i in range(9):
+            if i == 3 or i == 6:
+                output = output + "---+---+---\n"
+            for j in range(9):
+                if j == 3 or j == 6:
+                    output = output + "|"
+                current_cell = self.cells[convert_to_cell_num(j,i)]
+                current_cell_num = current_cell.get_num()
+                if current_cell_num == 0:
+                    output = output + " "
+                else:
+                    output = output + str(current_cell_num)
+                if j == 8:
+                    output = output + "\n"
+        print(output)
+        
+    def is_complete(self):
+        for cell in self.cells:
+            if cell.get_num() == 0:
+                return False
         return True
 
 
@@ -99,6 +150,11 @@ class Cell:
     def is_last(self):
         return (self.x == 8 and self.y == 8)
     
+    # cell # (0-80)
+    def get_cell_num(self):
+        return self.cell_num
+
+    # cell value (1-9)
     def get_num(self):
         return self.num
     
@@ -106,52 +162,60 @@ class Cell:
         self.num = num
 
 
-def convert_to_cell_num(x,y):
-    return y*9+x
 
-def convert_to_x_y(num):
-    y = num // 9
-    x = num % 9
-    return (x, y)
 
 # get the next cell pos based on the current pos
-def get_next(x, y):
+def get_next(x, y, format="tup"):
         if x == 8:
             next_x = 0
             next_y = y+1
         else:
             next_x = x+1
             next_y = y
-        
-        return (next_x, next_y)
+        if format !="tup":
+            return convert_to_cell_num(next_x, next_y)
+        return next_x, next_y
 
 
 def guess_cell(cell, grid):
+    # info
     current_x = cell.get_x()
     current_y = cell.get_y()
-    if cell.has_perm_num():
-        if not cell.is_last():
-            guess_cell(get_next(current_x, current_y))
-        else:
-            x = input()
+
+    # check if the grid is complete
+    if grid.is_complete():
+        return grid
+
+    # check if the cell should be skipped
+    if cell.has_perm_num() and not cell.is_last():
+        next_cell = get_next(current_x, current_y, format="num")
+        guess_cell(grid.get_cell(next_cell), grid)
+
+    # try numbers in the current cell
     else:
-        num_found = False
         # 1-10 b/c spaces will be filled with nums 1-9, not 0-8
-        for i in range(0,10):
-            # in case the cell needs to be changed after being set
-            cell.set_num(0)
+        for i in range(1,10):
             region = cell.get_region()
             num_found = grid.num_fits(current_x, current_y, region, i)
-            if num_found and not cell.is_last():
+            if num_found:
                 cell.set_num(i)
-                next_cell = convert_to_cell_num(get_next(current_x, current_y))
-                guess_cell(grid.get_cell(next_cell), grid)
-            else:
-                x = input()
-        if not num_found:
-            return
+                if not cell.is_last():
+                    next_cell = get_next(current_x, current_y, format="num")
+                    #print(chr(27) + "[2J")
+                    #grid.print_grid()
+                    #time.sleep(.025)
+                    guess_cell(grid.get_cell(next_cell), grid)
+                    if not grid.is_complete():
+                        cell.set_num(0)
+            # elif cell.is_last():
+            #     if grid.is_complete():
+            #         grid.print_grid()
+    return grid
 
 def main():
     grid = Grid("030001000006000050500000983080006302000050000903800060714000009020000800000400030")
+    grid.print_grid()
+    finished_grid = guess_cell(grid.get_cell(0), grid)
+    finished_grid.print_grid()
 
 main()
